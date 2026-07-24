@@ -117,11 +117,33 @@ export const TOUR_STEPS = [
     placement: 'right',
   },
   {
-    route: 'analisis-baru',
+    // FIX: sebelumnya tidak ada step yang benar-benar berpindah ke halaman
+    // Data Produk -- tur cuma menyorot ikon sidebar lalu berhenti di step
+    // berikutnya (nav-riwayat-analisis) tanpa pernah pindah halaman.
+    // Step ini menambahkan navigasi + highlight konten asli di Data Produk.
+    route: 'data-produk',
+    target: 'data-produk-filter',
+    title: 'Cari & Filter Produk',
+    text: 'Gunakan filter kategori, kondisi, prioritas, atau kolom pencarian untuk menemukan produk tertentu dengan cepat.',
+    placement: 'bottom',
+  },
+  {
+    // Dipindah dari halaman Analisis Baru ke Data Produk, supaya highlight
+    // ikon "Riwayat Analisis" muncul tepat sebelum tur pindah ke halaman itu.
+    route: 'data-produk',
     target: 'nav-riwayat-analisis',
     title: 'Riwayat Analisis',
-    text: 'Setiap analisis yang pernah Anda jalankan tersimpan di sini, bisa dibuka kembali kapan saja. Selamat menggunakan sistem!',
+    text: 'Setiap analisis yang pernah Anda jalankan tersimpan di sini, bisa dibuka kembali kapan saja.',
     placement: 'right',
+  },
+  {
+    // FIX: step baru -- benar-benar pindah ke halaman Riwayat Analisis dan
+    // menyorot tabelnya, jadi tur berakhir di konten asli, bukan di ikon.
+    route: 'riwayat-analisis',
+    target: 'riwayat-table',
+    title: 'Riwayat Analisis',
+    text: 'Semua riwayat analisis Anda ada di tabel ini, lengkap dengan status berhasil atau gagal. Selamat menggunakan sistem!',
+    placement: 'top',
   },
 ]
 
