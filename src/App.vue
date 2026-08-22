@@ -16,7 +16,7 @@ const showLayout = computed(() => route.name !== 'login' && authStore.isLoggedIn
 </script>
 
 <template>
-  <div v-if="showLayout" class="flex h-screen bg-gray-50">
+  <div v-if="showLayout" class="flex h-screen bg-[#eef3ee]">
     <Sidebar />
     <div class="flex-1 flex flex-col overflow-hidden">
       <Topbar />

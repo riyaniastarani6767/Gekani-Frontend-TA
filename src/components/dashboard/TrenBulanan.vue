@@ -1,10 +1,14 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ChartTooltip from './ChartTooltip.vue'
 
 const props = defineProps({
   data: { type: Array, default: () => [] },
 })
+
+// Animasi "gambar sendiri" pas chart pertama muncul, bukan langsung utuh
+const revealed = ref(false)
+onMounted(() => requestAnimationFrame(() => requestAnimationFrame(() => (revealed.value = true))))
 
 const rangeOptions = [
   { key: '12', label: '1 Thn', n: 12 },
@@ -112,19 +116,19 @@ function handleMouseLeave() {
 </script>
 
 <template>
-  <div class="bg-white rounded-xl border border-gray-200 p-5">
+  <div class="bg-white rounded-[10px] border border-[#e8eae8] p-3.5">
     <div class="flex items-center justify-between mb-3">
       <div>
-        <h3 class="font-semibold text-gray-900">Tren Penjualan Bulanan</h3>
-        <p class="text-xs text-gray-400">Arahkan kursor untuk lihat nilai per bulan</p>
+        <h3 class="text-[12.5px] font-bold text-[#111]">Tren Penjualan Bulanan</h3>
+        <p class="text-[10.5px] text-[#999]">Arahkan kursor untuk lihat nilai per bulan</p>
       </div>
-      <div class="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+      <div class="flex gap-1 bg-[#f3f4f6] rounded-lg p-0.5">
         <button
           v-for="opt in rangeOptions"
           :key="opt.key"
           @click="activeRange = opt.key"
           class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
-          :class="activeRange === opt.key ? 'bg-[#1b3829] text-white' : 'text-gray-500 hover:text-gray-700'"
+          :class="activeRange === opt.key ? 'bg-[#1e3a2a] text-white' : 'text-[#888] hover:text-[#333]'"
         >
           {{ opt.label }}
         </button>
@@ -142,9 +146,12 @@ function handleMouseLeave() {
     >
       <defs>
         <linearGradient id="trenGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#1b3829" stop-opacity="0.15" />
-          <stop offset="100%" stop-color="#1b3829" stop-opacity="0" />
+          <stop offset="0%" stop-color="#1e3a2a" stop-opacity="0.15" />
+          <stop offset="100%" stop-color="#1e3a2a" stop-opacity="0" />
         </linearGradient>
+        <clipPath id="trenRevealClip">
+          <rect x="0" y="0" :width="revealed ? W : 0" :height="H" style="transition: width 0.9s ease" />
+        </clipPath>
       </defs>
 
       <line
@@ -156,23 +163,25 @@ function handleMouseLeave() {
         {{ yl.label }}
       </text>
 
-      <path :d="areaPath" fill="url(#trenGradient)" />
-      <path :d="linePath" fill="none" stroke="#1b3829" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+      <g clip-path="url(#trenRevealClip)">
+        <path :d="areaPath" fill="url(#trenGradient)" />
+        <path :d="linePath" fill="none" stroke="#1e3a2a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
 
-      <line
-        v-if="hoverX !== null"
-        :x1="hoverX" :y1="PAD_TOP" :x2="hoverX" :y2="H - PAD_BOTTOM"
-        stroke="#1b3829" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"
-      />
-      <circle
-        v-for="p in points" :key="p.bulan"
-        :cx="p.x" :cy="p.y"
-        :r="hoverX === p.x ? 4 : 2"
-        fill="#1b3829"
-        :opacity="hoverX === null || hoverX === p.x ? 1 : 0"
-        :stroke="hoverX === p.x ? '#fff' : 'none'"
-        stroke-width="2"
-      />
+        <line
+          v-if="hoverX !== null"
+          :x1="hoverX" :y1="PAD_TOP" :x2="hoverX" :y2="H - PAD_BOTTOM"
+          stroke="#1e3a2a" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"
+        />
+        <circle
+          v-for="p in points" :key="p.bulan"
+          :cx="p.x" :cy="p.y"
+          :r="hoverX === p.x ? 4 : 2"
+          fill="#1e3a2a"
+          :opacity="hoverX === null || hoverX === p.x ? 1 : 0"
+          :stroke="hoverX === p.x ? '#fff' : 'none'"
+          stroke-width="2"
+        />
+      </g>
 
       <text v-for="xl in xAxisLabels" :key="'x'+xl.bulan" :x="xl.x" :y="H - 3" text-anchor="middle" font-size="7.5" fill="#9ca3af">
         {{ xl.label.split(' ')[0] }}

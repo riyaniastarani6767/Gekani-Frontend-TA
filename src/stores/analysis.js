@@ -4,6 +4,7 @@ import api from '@/services/api'
 
 export const useAnalysisStore = defineStore('analysis', () => {
   const currentAnalysis = ref(null)
+  const latestAnalysisDate = ref(null)
   const isLoading = ref(false)
   const error = ref(null)
 
@@ -80,6 +81,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     error.value = null
     try {
       const response = await api.get('/dashboard-summary')
+      latestAnalysisDate.value = response.data.created_at
       return response.data
     } catch (e) {
       error.value = e.response?.data?.error || 'Gagal memuat ringkasan dashboard.'
@@ -132,6 +134,20 @@ export const useAnalysisStore = defineStore('analysis', () => {
     }
   }
 
+  async function deleteHistory(analysisId) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await api.delete(`/history/${analysisId}`)
+      return response.data
+    } catch (e) {
+      error.value = e.response?.data?.error || 'Gagal menghapus riwayat analisis.'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   function resetWizard() {
     uploadedFile.value = null
     selectedTahunAwal.value = null
@@ -141,6 +157,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
 
   return {
     currentAnalysis,
+    latestAnalysisDate,
     isLoading,
     error,
     uploadedFile,
@@ -154,6 +171,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     fetchProducts,
     fetchHistory,
     fetchHistoryDetail,
+    deleteHistory,
     resetWizard,
   }
 })

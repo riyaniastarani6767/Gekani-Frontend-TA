@@ -8,56 +8,14 @@ export const TOUR_STEPS = [
     route: 'dashboard',
     target: 'kpi-cards',
     title: 'Ringkasan Cepat',
-    text: 'Di sini Anda bisa langsung lihat jumlah produk, berapa yang harus selalu ada, perlu dipantau, dan sebaiknya dikurangi.',
+    text: 'Lihat jumlah produk dan total penjualan sekilas. Klik salah satu kartu berwarna (Harus Selalu Ada, Perlu Dipantau, Musiman, Kurangi Pembelian) untuk langsung melihat daftar produknya.',
     placement: 'bottom',
-  },
-  {
-    route: 'dashboard',
-    target: 'panduan-keputusan',
-    title: 'Panduan Keputusan Persediaan',
-    text: 'Klik salah satu kartu di sini untuk melihat daftar produk sesuai kategorinya. Ini panduan tercepat untuk keputusan stok.',
-    placement: 'bottom',
-  },
-  {
-    route: 'dashboard',
-    target: 'insight-segmentasi',
-    title: 'Insight Segmentasi',
-    text: 'Ringkasan otomatis dalam bentuk kalimat, menjelaskan temuan penting dari hasil analisis tanpa perlu membaca data mentah.',
-    placement: 'bottom',
-  },
-  {
-    route: 'dashboard',
-    target: 'komposisi-segmentasi',
-    title: 'Komposisi Segmentasi Produk',
-    text: 'Grafik batang ini menunjukkan sebaran produk berdasarkan prioritas (ABC) dan kondisi penjualan. Klik salah satu batang untuk memfilter tabel produk di bawah.',
-    placement: 'right',
-  },
-  {
-    route: 'dashboard',
-    target: 'matrix-prioritas',
-    title: 'Matrix Prioritas Keputusan',
-    text: 'Kombinasi kondisi penjualan dan kategori ABC dirangkum jadi 4 kuadran keputusan. Klik salah satu untuk lihat daftar produknya.',
-    placement: 'left',
   },
   {
     route: 'dashboard',
     target: 'treemap',
     title: 'Treemap Kontribusi Pendapatan',
     text: 'Ukuran kotak menunjukkan besar kontribusi pendapatan tiap kategori produk. Semakin besar kotaknya, semakin besar kontribusinya.',
-    placement: 'right',
-  },
-  {
-    route: 'dashboard',
-    target: 'ringkasan-rekomendasi',
-    title: 'Ringkasan Rekomendasi Tindak Lanjut',
-    text: 'Aksi yang paling sering direkomendasikan sistem untuk seluruh produk, diurutkan dari yang paling banyak.',
-    placement: 'right',
-  },
-  {
-    route: 'dashboard',
-    target: 'kategori-produk-terbanyak',
-    title: 'Kategori dengan Produk Terbanyak',
-    text: 'Menunjukkan kategori mana yang memiliki varian produk paling banyak, dilihat dari jumlah produk bukan pendapatan.',
     placement: 'right',
   },
   {
@@ -69,16 +27,16 @@ export const TOUR_STEPS = [
   },
   {
     route: 'dashboard',
-    target: 'proporsi-kondisi',
-    title: 'Proporsi Kondisi Produk',
-    text: 'Diagram donat ini menunjukkan persentase produk di tiap kondisi penjualan (Laris, Stabil, Musiman, dst).',
+    target: 'top-5-produk',
+    title: 'Top 5 Produk Terlaris',
+    text: '5 produk dengan total penjualan tertinggi. Klik salah satu untuk melihat detail lengkapnya.',
     placement: 'left',
   },
   {
     route: 'dashboard',
-    target: 'top-5-produk',
-    title: 'Top 5 Produk Terlaris',
-    text: '5 produk dengan total penjualan tertinggi. Klik salah satu untuk melihat detail lengkapnya.',
+    target: 'proporsi-kondisi',
+    title: 'Proporsi Kondisi Produk',
+    text: 'Diagram donat ini menunjukkan persentase produk di tiap kondisi penjualan (Laris, Stabil, Musiman, dst). Klik segmen atau baris untuk memfilter tabel produk di bawah.',
     placement: 'left',
   },
   {
@@ -117,10 +75,6 @@ export const TOUR_STEPS = [
     placement: 'right',
   },
   {
-    // FIX: sebelumnya tidak ada step yang benar-benar berpindah ke halaman
-    // Data Produk -- tur cuma menyorot ikon sidebar lalu berhenti di step
-    // berikutnya (nav-riwayat-analisis) tanpa pernah pindah halaman.
-    // Step ini menambahkan navigasi + highlight konten asli di Data Produk.
     route: 'data-produk',
     target: 'data-produk-filter',
     title: 'Cari & Filter Produk',
@@ -128,8 +82,6 @@ export const TOUR_STEPS = [
     placement: 'bottom',
   },
   {
-    // Dipindah dari halaman Analisis Baru ke Data Produk, supaya highlight
-    // ikon "Riwayat Analisis" muncul tepat sebelum tur pindah ke halaman itu.
     route: 'data-produk',
     target: 'nav-riwayat-analisis',
     title: 'Riwayat Analisis',
@@ -137,8 +89,6 @@ export const TOUR_STEPS = [
     placement: 'right',
   },
   {
-    // FIX: step baru -- benar-benar pindah ke halaman Riwayat Analisis dan
-    // menyorot tabelnya, jadi tur berakhir di konten asli, bukan di ikon.
     route: 'riwayat-analisis',
     target: 'riwayat-table',
     title: 'Riwayat Analisis',

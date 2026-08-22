@@ -9,8 +9,9 @@ const emit = defineEmits(['select'])
 
 const tooltip = ref(null)
 
-// Palet warna berbeda per urutan kontribusi (bukan berdasarkan ABC)
-const PALETTE = ['#1b3829', '#2d6a4f', '#40916c', '#52b788', '#f59e0b', '#fb923c', '#f87171', '#fca5a5']
+// Palet: turunan dari 4 keluarga warna yang sama dipakai di seluruh app
+// (green/blue/amber/merah-bata), tanpa warna cerah/saturasi tinggi.
+const PALETTE = ['#3d6b4f', '#5c8a70', '#4f6c8a', '#8a6d3b', '#33507a', '#a15252', '#3d5a75']
 
 function formatRupiah(value) {
   if (value >= 1e9) return `Rp${(value / 1e9).toFixed(1)}M`
@@ -48,14 +49,6 @@ function sizeClass(pct) {
   return 'col-span-1'
 }
 
-// Teks gelap untuk kotak dengan warna terang (biar tetap kebaca)
-function textColorClass(warna) {
-  return ['#fb923c', '#f87171', '#fca5a5'].includes(warna) ? 'text-gray-900' : 'text-white'
-}
-function badgeClass(warna) {
-  return ['#fb923c', '#f87171', '#fca5a5'].includes(warna) ? 'bg-black/10' : 'bg-white/20'
-}
-
 function showTooltip(event, item) {
   tooltip.value = {
     x: event.clientX,
@@ -81,22 +74,22 @@ function hideTooltip() {
 </script>
 
 <template>
-  <div class="bg-white rounded-xl border border-gray-200 p-3.5 relative">
-    <h3 class="text-[12.5px] font-bold text-gray-900 mb-0.5">Treemap Kontribusi Pendapatan per Kategori</h3>
-    <p class="text-[10.5px] text-gray-400 mb-3">Ukuran kotak = proporsi pendapatan. Arahkan kursor untuk detail.</p>
+  <div class="bg-white rounded-[10px] border border-[#e8eae8] p-3.5 relative">
+    <h3 class="text-[12.5px] font-bold text-[#111] mb-0.5">Treemap Kontribusi Pendapatan per Kategori</h3>
+    <p class="text-[10.5px] text-[#999] mb-3">Ukuran kotak = proporsi pendapatan. Arahkan kursor untuk detail.</p>
     <div class="grid grid-cols-4 gap-1.5 auto-rows-[68px]">
       <div
         v-for="item in kategoriData"
         :key="item.kategori"
-        class="rounded-lg p-2.5 flex flex-col justify-between overflow-hidden cursor-pointer transition-transform hover:scale-[1.02]"
-        :class="[sizeClass(item.pct), textColorClass(item.warna)]"
+        class="rounded-lg p-2.5 flex flex-col justify-between overflow-hidden cursor-pointer text-white transition-transform hover:scale-[1.02]"
+        :class="sizeClass(item.pct)"
         :style="{ backgroundColor: item.warna }"
         @mouseenter="showTooltip($event, item)"
         @mousemove="moveTooltip"
         @mouseleave="hideTooltip"
         @click="emit('select', item.kategori)"
       >
-        <span class="text-[9.5px] font-medium rounded px-1.5 py-0.5 w-fit" :class="badgeClass(item.warna)">Kat {{ item.dominanAbc }}</span>
+        <span class="text-[9.5px] font-medium rounded px-1.5 py-0.5 w-fit bg-white/20">Kat {{ item.dominanAbc }}</span>
         <div>
           <div class="text-[11px] font-semibold truncate">{{ item.kategori }}</div>
           <div class="text-[13px] font-bold">{{ formatRupiah(item.revenue) }}</div>

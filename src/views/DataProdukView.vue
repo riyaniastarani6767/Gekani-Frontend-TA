@@ -27,28 +27,33 @@ const PAGE_SIZE = 19
 const kondisiList = ['Produk Laris', 'Produk Stabil', 'Produk Musiman', 'Jarang Terjual', 'Produk Grosir']
 const abcList = ['A', 'B', 'C']
 
-// ── Badge color maps (matches design reference) ──
+// ── Badge colors: one consistent 4-color family, desaturated, solid bg ──
+// green = positif/prioritas · blue = stabil/netral · amber = musiman/pantau · merah-bata = perlu tindakan
+// Produk Grosir reuses the blue family (darker shade) instead of introducing a 5th hue.
 const badgeKondisi = {
-  'Produk Laris': 'bg-[#dcfce7] text-[#16a34a]',
-  'Produk Stabil': 'bg-[#dbeafe] text-[#1d4ed8]',
-  'Produk Musiman': 'bg-[#fef9c3] text-[#854d0e]',
-  'Jarang Terjual': 'bg-[#fde8d8] text-[#c2410c]',
-  'Produk Grosir': 'bg-[#ede9fe] text-[#6d28d9]',
+  'Produk Laris': 'bg-[#e2ede6] text-[#3d6b4f]',
+  'Produk Stabil': 'bg-[#e3e9f2] text-[#3d5a75]',
+  'Produk Musiman': 'bg-[#f0e8d8] text-[#8a6d3b]',
+  'Jarang Terjual': 'bg-[#f0dede] text-[#8a4a4a]',
+  'Produk Grosir': 'bg-[#dde3ef] text-[#33507a]',
 }
 const badgePrioritas = {
-  A: 'bg-[#dcfce7] text-[#15803d]',
-  B: 'bg-[#fef9c3] text-[#854d0e]',
-  C: 'bg-[#fee2e2] text-[#dc2626]',
+  A: 'bg-[#e2ede6] text-[#3d6b4f]',
+  B: 'bg-[#f0e8d8] text-[#8a6d3b]',
+  C: 'bg-[#f0dede] text-[#8a4a4a]',
 }
-const prioritasLabel = { A: 'A — Harus Selalu Ada', B: 'B — Perlu Dipantau', C: 'C — Kurangi Pembelian' }
+// Label singkat dipakai di badge tabel (biar nggak diulang ratusan kali);
+// kepanjangannya cukup sekali di legenda atas tabel.
+const prioritasShort = { A: 'A', B: 'B', C: 'C' }
+const prioritasLabel = { A: 'Harus Selalu Ada', B: 'Perlu Dipantau', C: 'Kurangi Pembelian' }
 
 // Rekomendasi badge is derived from keywords in the recommendation text
 function badgeRekomendasi(text = '') {
   const t = text.toLowerCase()
-  if (t.includes('tambah') || t.includes('promosi')) return 'bg-[#dcfce7] text-[#15803d]'
-  if (t.includes('pertahankan') || t.includes('cek harga')) return 'bg-[#e0f2fe] text-[#0369a1]'
-  if (t.includes('musim') || t.includes('gabungkan')) return 'bg-[#fef9c3] text-[#854d0e]'
-  if (t.includes('kurangi') || t.includes('evaluasi')) return 'bg-[#fee2e2] text-[#dc2626]'
+  if (t.includes('tambah') || t.includes('promosi')) return 'bg-[#e2ede6] text-[#3d6b4f]'
+  if (t.includes('pertahankan') || t.includes('cek harga')) return 'bg-[#e3e9f2] text-[#3d5a75]'
+  if (t.includes('musim') || t.includes('gabungkan')) return 'bg-[#f0e8d8] text-[#8a6d3b]'
+  if (t.includes('kurangi') || t.includes('evaluasi')) return 'bg-[#f0dede] text-[#8a4a4a]'
   return 'bg-gray-100 text-gray-600'
 }
 
@@ -108,6 +113,34 @@ const perluDievaluasiCount = computed(
   () => allProducts.value.filter((p) => p.prioritas_abc === 'C' || p.kondisi_penjualan === 'Jarang Terjual').length
 )
 
+// Count-up animation: angka di summary card naik halus ke nilai baru,
+// bukan langsung ganti instan -- kesannya lebih hidup/interaktif.
+function useCountUp(source) {
+  const display = ref(0)
+  watch(
+    source,
+    (val) => {
+      const start = display.value
+      const change = val - start
+      if (change === 0) return
+      const duration = 500
+      const startTime = performance.now()
+      function tick(now) {
+        const progress = Math.min((now - startTime) / duration, 1)
+        display.value = Math.round(start + change * progress)
+        if (progress < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    },
+    { immediate: true }
+  )
+  return display
+}
+const totalProdukAnim = useCountUp(totalProduk)
+const totalKategoriAnim = useCountUp(totalKategori)
+const prioritasACountAnim = useCountUp(prioritasACount)
+const perluDievaluasiCountAnim = useCountUp(perluDievaluasiCount)
+
 // ── Client-side pagination over the already-fetched filtered list ──
 const totalPages = computed(() => Math.max(1, Math.ceil(products.value.length / PAGE_SIZE)))
 const pagedProducts = computed(() => {
@@ -149,7 +182,7 @@ function exportPdf() {
   doc.setFontSize(14)
   doc.setTextColor(30, 58, 42) // #1e3a2a
   doc.setFont(undefined, 'bold')
-  doc.text('Yudi Motor Analytics — Data Produk', 40, 40)
+  doc.text('Yudi Motor Analytics: Data Produk', 40, 40)
 
   doc.setFontSize(9)
   doc.setTextColor(120, 120, 120)
@@ -175,7 +208,7 @@ function exportPdf() {
       p.nama_produk,
       p.kategori,
       p.kondisi_penjualan,
-      prioritasLabel[p.prioritas_abc],
+      `${p.prioritas_abc}: ${prioritasLabel[p.prioritas_abc]}`,
       `${p.total_terjual.toLocaleString('id-ID')} pcs`,
       formatRupiah(p.total_penjualan),
       p.rekomendasi,
@@ -218,51 +251,27 @@ function exportPdf() {
     </div>
 
     <template v-else>
-      <!-- Summary cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-5">
-        <div class="relative bg-white border border-[#e8eae8] rounded-[10px] p-[18px_20px] flex items-start gap-3.5 overflow-hidden">
-          <span class="absolute top-0 left-0 right-0 h-[3px] bg-[#9ca3af]"></span>
-          <div class="w-[38px] h-[38px] rounded-lg bg-[#f3f4f6] flex items-center justify-center shrink-0">
-            <svg width="16" height="16" fill="none" stroke="#6b7280" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          </div>
-          <div>
-            <div class="text-[26px] font-extrabold leading-none text-[#111] mb-1">{{ totalProduk }}</div>
-            <div class="text-[12.5px] font-semibold text-[#222]">Total Produk</div>
-            <div class="text-[11px] text-[#999]">Semua produk terdaftar</div>
-          </div>
+      <!-- Summary cards: warna solid bold, tanpa ikon -- konsisten sama halaman lain -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-5">
+        <div class="rounded-[10px] p-4 bg-[#33403a] text-white">
+          <div class="text-[22px] font-extrabold leading-none">{{ totalProdukAnim }}</div>
+          <div class="text-[12px] font-semibold mt-2">Total Produk</div>
+          <div class="text-[10.5px] text-white/60 mt-0.5">Semua produk terdaftar</div>
         </div>
-        <div class="relative bg-white border border-[#e8eae8] rounded-[10px] p-[18px_20px] flex items-start gap-3.5 overflow-hidden">
-          <span class="absolute top-0 left-0 right-0 h-[3px] bg-[#3b82f6]"></span>
-          <div class="w-[38px] h-[38px] rounded-lg bg-[#eff6ff] flex items-center justify-center shrink-0">
-            <svg width="16" height="16" fill="none" stroke="#3b82f6" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          </div>
-          <div>
-            <div class="text-[26px] font-extrabold leading-none text-[#111] mb-1">{{ totalKategori }}</div>
-            <div class="text-[12.5px] font-semibold text-[#222]">Total Kategori</div>
-            <div class="text-[11px] text-[#999]">Kelompok produk utama</div>
-          </div>
+        <div class="rounded-[10px] p-4 bg-[#4f6c8a] text-white">
+          <div class="text-[22px] font-extrabold leading-none">{{ totalKategoriAnim }}</div>
+          <div class="text-[12px] font-semibold mt-2">Total Kategori</div>
+          <div class="text-[10.5px] text-white/60 mt-0.5">Kelompok produk utama</div>
         </div>
-        <div class="relative bg-white border border-[#e8eae8] rounded-[10px] p-[18px_20px] flex items-start gap-3.5 overflow-hidden">
-          <span class="absolute top-0 left-0 right-0 h-[3px] bg-[#22c55e]"></span>
-          <div class="w-[38px] h-[38px] rounded-lg bg-[#f0fdf4] flex items-center justify-center shrink-0">
-            <svg width="16" height="16" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-          </div>
-          <div>
-            <div class="text-[26px] font-extrabold leading-none text-[#111] mb-1">{{ prioritasACount }}</div>
-            <div class="text-[12.5px] font-semibold text-[#222]">Produk Prioritas A</div>
-            <div class="text-[11px] text-[#999]">Harus selalu tersedia</div>
-          </div>
+        <div class="rounded-[10px] p-4 bg-[#3d6b4f] text-white">
+          <div class="text-[22px] font-extrabold leading-none">{{ prioritasACountAnim }}</div>
+          <div class="text-[12px] font-semibold mt-2">Produk Prioritas A</div>
+          <div class="text-[10.5px] text-white/60 mt-0.5">Harus selalu tersedia</div>
         </div>
-        <div class="relative bg-white border border-[#e8eae8] rounded-[10px] p-[18px_20px] flex items-start gap-3.5 overflow-hidden">
-          <span class="absolute top-0 left-0 right-0 h-[3px] bg-[#ef4444]"></span>
-          <div class="w-[38px] h-[38px] rounded-lg bg-[#fef2f2] flex items-center justify-center shrink-0">
-            <svg width="16" height="16" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          </div>
-          <div>
-            <div class="text-[26px] font-extrabold leading-none text-[#111] mb-1">{{ perluDievaluasiCount }}</div>
-            <div class="text-[12.5px] font-semibold text-[#222]">Perlu Dievaluasi</div>
-            <div class="text-[11px] text-[#999]">Pertimbangkan kurangi stok</div>
-          </div>
+        <div class="rounded-[10px] p-4 bg-[#8a4a4a] text-white">
+          <div class="text-[22px] font-extrabold leading-none">{{ perluDievaluasiCountAnim }}</div>
+          <div class="text-[12px] font-semibold mt-2">Perlu Dievaluasi</div>
+          <div class="text-[10.5px] text-white/60 mt-0.5">Pertimbangkan kurangi stok</div>
         </div>
       </div>
 
@@ -299,7 +308,7 @@ function exportPdf() {
             :class="filterPrioritas ? 'border-[1.5px] border-[#2d6a4f] bg-[#f2f8f4] text-[#1e3a2a]' : 'border-[1.5px] border-[#e0e0e0] bg-white text-[#333]'"
           >
             <option value="">Semua Prioritas</option>
-            <option v-for="a in abcList" :key="a" :value="a">{{ prioritasLabel[a] }}</option>
+            <option v-for="a in abcList" :key="a" :value="a">{{ a }}: {{ prioritasLabel[a] }}</option>
           </select>
           <svg class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" width="10" height="10" fill="none" stroke="#999" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
@@ -332,6 +341,15 @@ function exportPdf() {
         </div>
       </div>
 
+      <!-- Legenda -- dijelaskan sekali di sini, bukan diulang di tiap baris tabel -->
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2.5 text-[11px] text-[#888]">
+        <span class="font-medium text-[#666]">Prioritas:</span>
+        <span v-for="a in abcList" :key="a" class="inline-flex items-center gap-1.5">
+          <span class="inline-flex items-center justify-center w-4 h-4 rounded text-[9.5px] font-bold" :class="badgePrioritas[a]">{{ a }}</span>
+          {{ prioritasLabel[a] }}
+        </span>
+      </div>
+
       <!-- Table -->
       <div class="bg-white border border-[#e8eae8] rounded-[10px] overflow-hidden">
         <div class="overflow-x-auto">
@@ -352,7 +370,8 @@ function exportPdf() {
               <tr
                 v-for="(p, idx) in pagedProducts"
                 :key="p.nama_produk"
-                class="border-b border-[#f3f4f3] last:border-b-0 hover:bg-[#fafbfa] transition-colors"
+                class="border-b border-[#f3f4f3] last:border-b-0 hover:bg-[#fafbfa] transition-colors row-fade-in"
+                :style="{ animationDelay: `${Math.min(idx, 12) * 30}ms` }"
               >
                 <td class="px-3.5 py-3 text-[12px] text-[#bbb]">{{ (currentPage - 1) * PAGE_SIZE + idx + 1 }}</td>
                 <td class="px-3.5 py-3">
@@ -363,19 +382,19 @@ function exportPdf() {
                 </td>
                 <td class="px-3.5 py-3 text-[12.5px] text-[#555]">{{ p.kategori }}</td>
                 <td class="px-3.5 py-3">
-                  <span class="inline-flex items-center px-2.5 py-[3px] rounded-[5px] text-xs font-semibold whitespace-nowrap" :class="badgeKondisi[p.kondisi_penjualan]">
+                  <span class="inline-flex items-center px-2.5 py-[3px] rounded-[5px] text-xs font-semibold whitespace-nowrap transition-transform hover:scale-105" :class="badgeKondisi[p.kondisi_penjualan]">
                     {{ p.kondisi_penjualan }}
                   </span>
                 </td>
                 <td class="px-3.5 py-3">
-                  <span class="inline-flex items-center px-2.5 py-[3px] rounded-[5px] text-[11.5px] font-semibold whitespace-nowrap" :class="badgePrioritas[p.prioritas_abc]">
-                    {{ prioritasLabel[p.prioritas_abc] }}
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-md text-xs font-bold transition-transform hover:scale-110" :class="badgePrioritas[p.prioritas_abc]" :title="prioritasLabel[p.prioritas_abc]">
+                    {{ prioritasShort[p.prioritas_abc] }}
                   </span>
                 </td>
                 <td class="px-3.5 py-3 text-[13px] text-[#333] text-right tabular-nums whitespace-nowrap">{{ p.total_terjual.toLocaleString('id-ID') }} pcs</td>
                 <td class="px-3.5 py-3 text-[13px] text-[#333] text-right tabular-nums whitespace-nowrap">{{ formatRupiah(p.total_penjualan) }}</td>
                 <td class="px-3.5 py-3">
-                  <span class="inline-flex items-center px-2.5 py-[3px] rounded-[5px] text-xs font-semibold whitespace-nowrap" :class="badgeRekomendasi(p.rekomendasi)">
+                  <span class="inline-flex items-center px-2.5 py-[3px] rounded-[5px] text-xs font-semibold whitespace-nowrap transition-transform hover:scale-105" :class="badgeRekomendasi(p.rekomendasi)">
                     {{ p.rekomendasi }}
                   </span>
                 </td>
@@ -413,3 +432,19 @@ function exportPdf() {
     </template>
   </div>
 </template>
+
+<style scoped>
+@keyframes rowFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.row-fade-in {
+  animation: rowFadeIn 0.28s ease both;
+}
+</style>

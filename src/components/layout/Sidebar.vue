@@ -1,10 +1,12 @@
 <script setup>
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useTourStore } from '@/stores/tour'
 import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const uiStore = useUiStore()
+const tourStore = useTourStore()
 const router = useRouter()
 
 const navItems = [
@@ -22,6 +24,14 @@ async function handleLogout() {
 
 function handleNavClick() {
   uiStore.closeSidebar()
+}
+
+// Ulang tur onboarding kapan aja lewat sidebar, tanpa perlu hapus
+// localStorage manual lewat DevTools. TourOverlay otomatis mengarahkan
+// ke Dashboard sendiri lewat watcher isActive, cukup panggil startTour().
+function handleRestartTour() {
+  uiStore.closeSidebar()
+  tourStore.startTour()
 }
 </script>
 
@@ -73,7 +83,16 @@ function handleNavClick() {
       </router-link>
     </nav>
 
-    <div class="p-2 pt-2 border-t border-white/[0.08]">
+    <div class="p-2 pt-2 border-t border-white/[0.08] flex flex-col gap-px">
+      <button
+        @click="handleRestartTour"
+        class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[12.5px] font-medium text-white/40 hover:bg-white/[0.07] hover:text-white/85 transition-colors"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Lihat Tur
+      </button>
       <button
         @click="handleLogout"
         class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[12.5px] font-medium text-white/40 hover:bg-white/[0.07] hover:text-white/85 transition-colors"
