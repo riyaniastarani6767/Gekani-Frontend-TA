@@ -46,6 +46,13 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  // Scroll ke atas tiap pindah halaman -- default Vue Router TIDAK
+  // melakukan ini otomatis, jadi tanpa baris ini posisi scroll lama
+  // "kebawa" ke halaman baru dan bikin tampilan kelihatan numpuk/aneh.
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    return { top: 0 }
+  },
 })
 
 // Route guard: sesuai Use Case Diagram (Gambar 3.3) -- Login jadi syarat

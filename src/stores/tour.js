@@ -82,13 +82,6 @@ export const TOUR_STEPS = [
     placement: 'bottom',
   },
   {
-    route: 'data-produk',
-    target: 'nav-riwayat-analisis',
-    title: 'Riwayat Analisis',
-    text: 'Setiap analisis yang pernah Anda jalankan tersimpan di sini, bisa dibuka kembali kapan saja.',
-    placement: 'right',
-  },
-  {
     route: 'riwayat-analisis',
     target: 'riwayat-table',
     title: 'Riwayat Analisis',

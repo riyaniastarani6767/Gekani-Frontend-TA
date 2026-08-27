@@ -10,6 +10,8 @@ const router = useRouter()
 const route = useRoute()
 
 const targetRect = ref(null)
+const targetMissing = ref(false)
+const showFinishMessage = ref(false)
 const tooltipStyle = ref({})
 const MOBILE_BREAKPOINT = 1024 // matches Tailwind's `lg:` used by Sidebar.vue
 
@@ -34,9 +36,6 @@ function computeTooltipPosition(step, rect) {
   const isNarrowScreen = window.innerWidth < 640
 
   if (isNarrowScreen) {
-    // Di HP: tooltip selalu jadi panel tetap di bawah layar, terpisah dari
-    // posisi/tinggi kartu target -- supaya tidak pernah terpotong keluar layar
-    // walau kartunya lebih tinggi dari layar HP.
     tooltipStyle.value = {
       position: 'fixed',
       top: 'auto',
@@ -78,6 +77,7 @@ async function goToStep() {
 
   // Reset di awal transisi supaya tooltip lama tidak "nempel" sekejap di posisi salah
   targetRect.value = null
+  targetMissing.value = false
 
   if (route.name !== step.route) {
     try {
@@ -87,6 +87,25 @@ async function goToStep() {
     }
     await nextTick()
     await new Promise((r) => setTimeout(r, 200))
+  }
+
+  // Step terakhir (Riwayat Analisis): jangan coba render tooltip/highlight
+  // yang nempel ke elemen di sana -- terlalu rawan gagal cari elemen target.
+  // Sebagai gantinya, tampilkan pesan "Tur Selesai" di tengah layar selama
+  // beberapa detik supaya user sempat lihat konfirmasinya, baru otomatis
+  // ditutup & diarahkan balik ke Dashboard -- tanpa butuh klik apa pun.
+  if (tourStore.isLastStep) {
+    targetRect.value = null
+    targetMissing.value = false
+    showFinishMessage.value = true
+    await new Promise((r) => setTimeout(r, 2200))
+    showFinishMessage.value = false
+    tourStore.finishTour()
+    uiStore.closeSidebar()
+    if (route.name !== 'dashboard') {
+      await router.push({ name: 'dashboard' })
+    }
+    return
   }
 
   // FIX RESPONSIF: step yang menyorot ikon sidebar (target diawali "nav-")
@@ -108,18 +127,22 @@ async function goToStep() {
   await nextTick()
 
   let el = null
-  for (let attempt = 0; attempt < 15; attempt++) {
+  for (let attempt = 0; attempt < 20; attempt++) {
     el = document.querySelector(`[data-tour="${step.target}"]`)
     if (el) break
-    await new Promise((r) => setTimeout(r, 100))
+    await new Promise((r) => setTimeout(r, 150))
   }
 
   if (el) {
+    targetMissing.value = false
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     await new Promise((r) => setTimeout(r, 350))
+    measureTarget()
+  } else {
+    console.warn(`[Tour] Target "${step.target}" tidak ditemukan di halaman "${step.route}"`)
+    targetRect.value = null
+    targetMissing.value = true
   }
-
-  measureTarget()
 }
 
 watch(() => tourStore.currentStepIndex, () => {
@@ -133,9 +156,6 @@ function handleReposition() {
   if (tourStore.isActive) measureTarget()
 }
 
-// Tombol "Selanjutnya" -- kalau ini step terakhir, selesaikan tur,
-// tutup drawer mobile kalau masih kebuka, dan antar user balik ke
-// Dashboard sebagai "home base" penutup tur.
 async function handleNext() {
   if (tourStore.isLastStep) {
     tourStore.finishTour()
@@ -185,10 +205,15 @@ onUnmounted(() => {
 
     <transition name="tour-tooltip" mode="out-in">
       <div
-        v-if="targetRect"
+        v-if="targetRect || targetMissing"
         :key="tourStore.currentStepIndex"
         class="fixed z-[61] bg-white rounded-xl shadow-2xl p-5"
-        :style="tooltipStyle"
+        :style="targetRect ? tooltipStyle : {
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '320px',
+        }"
       >
         <div class="text-[10px] font-semibold text-emerald-600 mb-1">
           Langkah {{ tourStore.currentStepIndex + 1 }} dari {{ tourStore.totalSteps }}
@@ -213,6 +238,24 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
+      </div>
+    </transition>
+
+    <!-- Pesan penutup tur: muncul di step terakhir, tengah layar, lalu -->
+    <!-- otomatis hilang & redirect ke Dashboard -- tanpa perlu klik apa pun. -->
+    <transition name="tour-tooltip">
+      <div
+        v-if="showFinishMessage"
+        class="fixed z-[61] bg-white rounded-xl shadow-2xl p-6 text-center"
+        style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px;"
+      >
+        <div class="w-11 h-11 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+          <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h4 class="text-sm font-bold text-gray-900 mb-1">Tur Selesai!</h4>
+        <p class="text-xs text-gray-600 leading-relaxed">Anda akan diarahkan kembali ke Dashboard...</p>
       </div>
     </transition>
   </div>

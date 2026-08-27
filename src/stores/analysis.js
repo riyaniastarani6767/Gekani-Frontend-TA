@@ -105,7 +105,21 @@ export const useAnalysisStore = defineStore('analysis', () => {
     }
   }
 
-  async function fetchHistory() {
+  async function fetchProductsMonthly(filters = {}) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await api.get('/products/monthly', { params: filters })
+      return response.data
+    } catch (e) {
+      error.value = e.response?.data?.error || 'Gagal memuat data perbandingan bulanan.'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+    async function fetchHistory() {
     isLoading.value = true
     error.value = null
     try {
@@ -169,6 +183,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     runAnalysis,
     fetchDashboardSummary,
     fetchProducts,
+    fetchProductsMonthly,
     fetchHistory,
     fetchHistoryDetail,
     deleteHistory,

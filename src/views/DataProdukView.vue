@@ -8,13 +8,10 @@ import autoTable from 'jspdf-autotable'
 const route = useRoute()
 const analysisStore = useAnalysisStore()
 
-// Filtered table data (server-side filters)
 const products = ref([])
 const total = ref(0)
 const loadError = ref(false)
 
-// Unfiltered snapshot, used only to compute the 4 summary cards so they
-// stay constant while the table itself is being filtered/searched
 const allProducts = ref([])
 
 const filterKategori = ref('')
@@ -27,9 +24,6 @@ const PAGE_SIZE = 19
 const kondisiList = ['Produk Laris', 'Produk Stabil', 'Produk Musiman', 'Jarang Terjual', 'Produk Grosir']
 const abcList = ['A', 'B', 'C']
 
-// ── Badge colors: one consistent 4-color family, desaturated, solid bg ──
-// green = positif/prioritas · blue = stabil/netral · amber = musiman/pantau · merah-bata = perlu tindakan
-// Produk Grosir reuses the blue family (darker shade) instead of introducing a 5th hue.
 const badgeKondisi = {
   'Produk Laris': 'bg-[#e2ede6] text-[#3d6b4f]',
   'Produk Stabil': 'bg-[#e3e9f2] text-[#3d5a75]',
@@ -42,12 +36,9 @@ const badgePrioritas = {
   B: 'bg-[#f0e8d8] text-[#8a6d3b]',
   C: 'bg-[#f0dede] text-[#8a4a4a]',
 }
-// Label singkat dipakai di badge tabel (biar nggak diulang ratusan kali);
-// kepanjangannya cukup sekali di legenda atas tabel.
 const prioritasShort = { A: 'A', B: 'B', C: 'C' }
 const prioritasLabel = { A: 'Harus Selalu Ada', B: 'Perlu Dipantau', C: 'Kurangi Pembelian' }
 
-// Rekomendasi badge is derived from keywords in the recommendation text
 function badgeRekomendasi(text = '') {
   const t = text.toLowerCase()
   if (t.includes('tambah') || t.includes('promosi')) return 'bg-[#e2ede6] text-[#3d6b4f]'
@@ -57,7 +48,6 @@ function badgeRekomendasi(text = '') {
   return 'bg-gray-100 text-gray-600'
 }
 
-// Category badge: first letter of the category name, no emoji
 function iconFor(kategori) {
   return kategori ? kategori.trim().charAt(0).toUpperCase() : '?'
 }
@@ -66,6 +56,16 @@ function formatRupiah(value) {
   return `Rp${Math.round(value).toLocaleString('id-ID')}`
 }
 
+// Format ringkas buat sel tabel per-bulan (kolomnya banyak, nggak muat kalau full Rp)
+function formatCompact(value) {
+  if (!value) return '-'
+  if (value >= 1e9) return `${(value / 1e9).toFixed(1)} M`
+  if (value >= 1e6) return `${(value / 1e6).toFixed(1)} Jt`
+  if (value >= 1e3) return `${Math.round(value / 1e3)} rb`
+  return `${Math.round(value)}`
+}
+
+// ── Mode Ringkasan (existing) ──
 async function loadProducts() {
   try {
     const filters = {}
@@ -92,19 +92,149 @@ async function loadSummary() {
   }
 }
 
+// ── Mode Per Bulan (baru) ──
+const viewMode = ref('ringkasan') // 'ringkasan' | 'bulanan'
+const bulanAwal = ref('')
+const bulanAkhir = ref('')
+const months = ref([])
+const monthlyProducts = ref([])
+const monthlyLoading = ref(false)
+const monthlyLoadError = ref('')
+const currentPageMonthly = ref(1)
+const selectedForChart = ref(new Set())
+
+const bulanLabelMap = { '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'Mei', '06': 'Jun', '07': 'Jul', '08': 'Agu', '09': 'Sep', '10': 'Okt', '11': 'Nov', '12': 'Des' }
+function monthLabel(ym) {
+  const [y, m] = ym.split('-')
+  return `${bulanLabelMap[m]} '${y.slice(2)}`
+}
+
+async function loadMonthly() {
+  if (!bulanAwal.value || !bulanAkhir.value) return
+  monthlyLoading.value = true
+  monthlyLoadError.value = ''
+  try {
+    const filters = { bulan_awal: bulanAwal.value, bulan_akhir: bulanAkhir.value }
+    if (filterKategori.value) filters.kategori = filterKategori.value
+    if (filterKondisi.value) filters.kondisi = filterKondisi.value
+    if (filterPrioritas.value) filters.prioritas = filterPrioritas.value
+    if (searchQuery.value) filters.search = searchQuery.value
+
+    const data = await analysisStore.fetchProductsMonthly(filters)
+    months.value = data.months
+    monthlyProducts.value = data.products
+    currentPageMonthly.value = 1
+  } catch (e) {
+    monthlyLoadError.value = e.response?.data?.error || 'Gagal memuat data bulanan.'
+    monthlyProducts.value = []
+    months.value = []
+  } finally {
+    monthlyLoading.value = false
+  }
+}
+
+function switchMode(mode) {
+  viewMode.value = mode
+  if (mode === 'bulanan' && bulanAwal.value && bulanAkhir.value && monthlyProducts.value.length === 0) {
+    loadMonthly()
+  }
+}
+
+function toggleChartSelect(namaProduk) {
+  const s = new Set(selectedForChart.value)
+  if (s.has(namaProduk)) s.delete(namaProduk)
+  else s.add(namaProduk)
+  selectedForChart.value = s
+}
+
+const totalPagesMonthly = computed(() => Math.max(1, Math.ceil(monthlyProducts.value.length / PAGE_SIZE)))
+const pagedMonthlyProducts = computed(() => {
+  const start = (currentPageMonthly.value - 1) * PAGE_SIZE
+  return monthlyProducts.value.slice(start, start + PAGE_SIZE)
+})
+const rangeLabelMonthly = computed(() => {
+  if (monthlyProducts.value.length === 0) return '0 produk'
+  const start = (currentPageMonthly.value - 1) * PAGE_SIZE + 1
+  const end = Math.min(currentPageMonthly.value * PAGE_SIZE, monthlyProducts.value.length)
+  return `Menampilkan ${start}–${end} dari ${monthlyProducts.value.length} produk`
+})
+function goToPageMonthly(p) {
+  if (p >= 1 && p <= totalPagesMonthly.value) currentPageMonthly.value = p
+}
+
+// ── Grafik perbandingan (SVG manual, konsisten sama scatter plot Hasil Analisis) ──
+const CHART_W = 640
+const CHART_H = 190
+const CHART_PAD_L = 50
+const CHART_PAD_R = 16
+const CHART_PAD_T = 12
+const CHART_PAD_B = 26
+const chartColors = ['#3d6b4f', '#4f6c8a', '#b6935a', '#a15252', '#3d5580', '#8a4a4a', '#33507a', '#5c8a70']
+
+const selectedProductsData = computed(() =>
+  monthlyProducts.value.filter((p) => selectedForChart.value.has(p.nama_produk))
+)
+const chartMaxValue = computed(() => {
+  let max = 1
+  for (const p of selectedProductsData.value) {
+    for (const ym of months.value) {
+      const v = p.monthly[ym] || 0
+      if (v > max) max = v
+    }
+  }
+  return max
+})
+function chartX(i) {
+  if (months.value.length <= 1) return CHART_PAD_L
+  return CHART_PAD_L + (i / (months.value.length - 1)) * (CHART_W - CHART_PAD_L - CHART_PAD_R)
+}
+function chartY(v) {
+  return CHART_H - CHART_PAD_B - (v / chartMaxValue.value) * (CHART_H - CHART_PAD_T - CHART_PAD_B)
+}
+function chartPoints(p) {
+  return months.value.map((ym, i) => `${chartX(i)},${chartY(p.monthly[ym] || 0)}`).join(' ')
+}
+const chartYTicks = computed(() => {
+  const max = chartMaxValue.value
+  return [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max * f))
+})
+
+// Tooltip hover di titik grafik -- konsisten sama pola tooltip Scatter Plot di Hasil Analisis
+const hoverPoint = ref(null)
+const tooltipPos = ref({ x: 0, y: 0 })
+function onDotHover(namaProduk, ym, value, event) {
+  hoverPoint.value = { produk: namaProduk, bulan: monthLabel(ym), value }
+  const container = event.currentTarget.closest('svg').parentElement.getBoundingClientRect()
+  tooltipPos.value = { x: event.clientX - container.left, y: event.clientY - container.top }
+}
+
+// Tint background baris tabel yang lagi dicentang, warnanya nyambung ke garis di grafik
+function rowHighlightStyle(namaProduk) {
+  const idx = selectedProductsData.value.findIndex((p) => p.nama_produk === namaProduk)
+  if (idx === -1) return {}
+  const color = chartColors[idx % chartColors.length]
+  return { backgroundColor: `${color}26`, borderLeft: `3px solid ${color}` }
+}
+
 let searchTimeout
+function refreshActiveMode() {
+  if (viewMode.value === 'ringkasan') loadProducts()
+  else loadMonthly()
+}
 watch(searchQuery, () => {
   clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(loadProducts, 300)
+  searchTimeout = setTimeout(refreshActiveMode, 300)
 })
-watch([filterKategori, filterKondisi, filterPrioritas], loadProducts)
+watch([filterKategori, filterKondisi, filterPrioritas], refreshActiveMode)
+watch([bulanAwal, bulanAkhir], () => {
+  if (viewMode.value === 'bulanan') loadMonthly()
+})
 
 onMounted(() => {
   loadProducts()
   loadSummary()
 })
 
-// ── Summary card numbers, computed from the unfiltered snapshot ──
 const kategoriList = computed(() => [...new Set(allProducts.value.map((p) => p.kategori))].sort())
 const totalProduk = computed(() => allProducts.value.length)
 const totalKategori = computed(() => kategoriList.value.length)
@@ -113,8 +243,6 @@ const perluDievaluasiCount = computed(
   () => allProducts.value.filter((p) => p.prioritas_abc === 'C' || p.kondisi_penjualan === 'Jarang Terjual').length
 )
 
-// Count-up animation: angka di summary card naik halus ke nilai baru,
-// bukan langsung ganti instan -- kesannya lebih hidup/interaktif.
 function useCountUp(source) {
   const display = ref(0)
   watch(
@@ -141,7 +269,6 @@ const totalKategoriAnim = useCountUp(totalKategori)
 const prioritasACountAnim = useCountUp(prioritasACount)
 const perluDievaluasiCountAnim = useCountUp(perluDievaluasiCount)
 
-// ── Client-side pagination over the already-fetched filtered list ──
 const totalPages = computed(() => Math.max(1, Math.ceil(products.value.length / PAGE_SIZE)))
 const pagedProducts = computed(() => {
   const start = (currentPage.value - 1) * PAGE_SIZE
@@ -157,7 +284,6 @@ function goToPage(p) {
   if (p >= 1 && p <= totalPages.value) currentPage.value = p
 }
 
-// ── Export ──
 function exportExcel() {
   const header = ['No', 'Nama Produk', 'Kategori', 'Kondisi Penjualan', 'Prioritas', 'Total Terjual', 'Total Penjualan', 'Rekomendasi']
   const rows = products.value.map((p, i) => [
@@ -178,9 +304,8 @@ function exportPdf() {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
 
-  // Header
   doc.setFontSize(14)
-  doc.setTextColor(30, 58, 42) // #1e3a2a
+  doc.setTextColor(30, 58, 42)
   doc.setFont(undefined, 'bold')
   doc.text('Yudi Motor Analytics: Data Produk', 40, 40)
 
@@ -199,7 +324,6 @@ function exportPdf() {
     40, 56
   )
 
-  // Table
   autoTable(doc, {
     startY: 72,
     head: [['No', 'Nama Produk', 'Kategori', 'Kondisi', 'Prioritas', 'Terjual', 'Pendapatan', 'Rekomendasi']],
@@ -251,7 +375,6 @@ function exportPdf() {
     </div>
 
     <template v-else>
-      <!-- Summary cards: warna solid bold, tanpa ikon -- konsisten sama halaman lain -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-5">
         <div class="rounded-[10px] p-4 bg-[#33403a] text-white">
           <div class="text-[22px] font-extrabold leading-none">{{ totalProdukAnim }}</div>
@@ -275,7 +398,25 @@ function exportPdf() {
         </div>
       </div>
 
-      <!-- Filter bar -->
+      <!-- Toggle mode -->
+      <div class="flex items-center gap-2 mb-3.5">
+        <button
+          @click="switchMode('ringkasan')"
+          class="px-4 py-1.5 rounded-lg text-[12.5px] font-semibold transition-colors"
+          :class="viewMode === 'ringkasan' ? 'bg-[#1e3a2a] text-white' : 'bg-[#f0f1f3] text-[#666] hover:bg-[#e5e6e8]'"
+        >
+          Ringkasan
+        </button>
+        <button
+          @click="switchMode('bulanan')"
+          class="px-4 py-1.5 rounded-lg text-[12.5px] font-semibold transition-colors"
+          :class="viewMode === 'bulanan' ? 'bg-[#1e3a2a] text-white' : 'bg-[#f0f1f3] text-[#666] hover:bg-[#e5e6e8]'"
+        >
+          Per Bulan
+        </button>
+      </div>
+
+      <!-- Filter bar (kategori/kondisi/prioritas/search dipakai bareng 2 mode) -->
       <div data-tour="data-produk-filter" class="flex flex-wrap items-center gap-2 mb-3.5">
         <div class="relative">
           <select
@@ -323,7 +464,8 @@ function exportPdf() {
           />
         </div>
 
-        <div class="ml-auto flex gap-2">
+        <!-- Kanan: export (mode Ringkasan) atau rentang bulan (mode Per Bulan) -->
+        <div v-if="viewMode === 'ringkasan'" class="ml-auto flex gap-2">
           <button
             @click="exportExcel"
             class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12.5px] font-semibold border-[1.5px] border-[#d1d5db] bg-white text-[#333] hover:bg-gray-50 hover:border-[#9ca3af] transition-colors"
@@ -339,9 +481,15 @@ function exportPdf() {
             Export PDF
           </button>
         </div>
+        <div v-else class="ml-auto flex items-center gap-2">
+          <span class="text-[11px] text-[#888] font-medium">Dari</span>
+          <input v-model="bulanAwal" type="month" class="px-2.5 py-1.5 rounded-lg border-[1.5px] border-[#e0e0e0] text-[12.5px] text-[#333] outline-none focus:border-[#2d6a4f]" />
+          <span class="text-[11px] text-[#888] font-medium">Sampai</span>
+          <input v-model="bulanAkhir" type="month" class="px-2.5 py-1.5 rounded-lg border-[1.5px] border-[#e0e0e0] text-[12.5px] text-[#333] outline-none focus:border-[#2d6a4f]" />
+        </div>
       </div>
 
-      <!-- Legenda -- dijelaskan sekali di sini, bukan diulang di tiap baris tabel -->
+      <!-- Legenda -->
       <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2.5 text-[11px] text-[#888]">
         <span class="font-medium text-[#666]">Prioritas:</span>
         <span v-for="a in abcList" :key="a" class="inline-flex items-center gap-1.5">
@@ -350,8 +498,8 @@ function exportPdf() {
         </span>
       </div>
 
-      <!-- Table -->
-      <div class="bg-white border border-[#e8eae8] rounded-[10px] overflow-hidden">
+      <!-- ============ MODE RINGKASAN ============ -->
+      <div v-if="viewMode === 'ringkasan'" class="bg-white border border-[#e8eae8] rounded-[10px] overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full border-collapse">
             <thead>
@@ -406,7 +554,6 @@ function exportPdf() {
           </table>
         </div>
 
-        <!-- Pagination -->
         <div class="px-4 py-3 border-t border-[#e8eae8] flex items-center justify-between">
           <span class="text-xs text-[#9ca3af]">{{ rangeLabel }}</span>
           <div class="flex gap-1">
@@ -424,8 +571,121 @@ function exportPdf() {
               :disabled="currentPage === totalPages"
               class="px-3 py-1.5 rounded-md text-xs border border-[#e8eae8] bg-white text-[#555] hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              →
+              &rarr;
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ MODE PER BULAN ============ -->
+      <div v-else>
+        <div v-if="!bulanAwal || !bulanAkhir" class="bg-white rounded-[10px] border border-[#e8eae8] p-10 text-center text-[#888] text-sm">
+          Pilih rentang bulan di atas untuk melihat perbandingan pendapatan per produk.
+        </div>
+        <div v-else-if="monthlyLoadError" class="bg-white rounded-[10px] border border-[#e8eae8] p-10 text-center text-[#8a4a4a] text-sm">
+          {{ monthlyLoadError }}
+        </div>
+        <div v-else>
+          <!-- Grafik -->
+          <div class="bg-white rounded-[10px] border border-[#e8eae8] p-4 mb-4">
+            <div class="text-[13px] font-bold text-[#111] mb-0.5">Grafik Perbandingan</div>
+            <p class="text-[11px] text-[#999] mb-3">{{ selectedForChart.size === 0 ? 'Centang produk di tabel untuk menampilkan grafik.' : `${selectedForChart.size} produk dicentang` }}</p>
+            <div v-if="selectedForChart.size > 0" class="relative">
+              <svg :viewBox="`0 0 ${CHART_W} ${CHART_H}`" class="w-full h-[190px]">
+                <g v-for="t in chartYTicks" :key="t">
+                  <line :x1="CHART_PAD_L" :x2="CHART_W - CHART_PAD_R" :y1="chartY(t)" :y2="chartY(t)" stroke="#f0f0ef" stroke-width="1" />
+                  <text :x="CHART_PAD_L - 8" :y="chartY(t) + 3" text-anchor="end" font-size="9" fill="#9ca3af">{{ formatCompact(t) }}</text>
+                </g>
+                <text v-for="(ym, i) in months" :key="ym" :x="chartX(i)" :y="CHART_H - 6" text-anchor="middle" font-size="9" fill="#9ca3af">{{ monthLabel(ym) }}</text>
+                <polyline
+                  v-for="(p, idx) in selectedProductsData" :key="p.nama_produk"
+                  :points="chartPoints(p)" fill="none" :stroke="chartColors[idx % chartColors.length]" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                />
+                <template v-for="(p, idx) in selectedProductsData" :key="'dots-' + p.nama_produk">
+                  <circle
+                    v-for="(ym, i) in months" :key="ym"
+                    :cx="chartX(i)" :cy="chartY(p.monthly[ym] || 0)"
+                    :r="hoverPoint && hoverPoint.produk === p.nama_produk && hoverPoint.bulan === monthLabel(ym) ? 5 : 3"
+                    :fill="chartColors[idx % chartColors.length]"
+                    stroke="#fff" stroke-width="1.2"
+                    class="cursor-pointer transition-all duration-100"
+                    @mouseenter="onDotHover(p.nama_produk, ym, p.monthly[ym] || 0, $event)"
+                    @mousemove="onDotHover(p.nama_produk, ym, p.monthly[ym] || 0, $event)"
+                    @mouseleave="hoverPoint = null"
+                  />
+                </template>
+              </svg>
+
+              <div
+                v-if="hoverPoint"
+                class="absolute z-10 pointer-events-none bg-[#111827] text-white text-xs rounded-lg shadow-lg px-3 py-2 whitespace-nowrap transition-opacity"
+                :style="{ left: tooltipPos.x + 'px', top: tooltipPos.y + 'px', transform: 'translate(-50%, calc(-100% - 10px))' }"
+              >
+                <div class="font-semibold text-[12px] mb-0.5">{{ hoverPoint.produk }}</div>
+                <div class="text-gray-300">{{ hoverPoint.bulan }} &middot; <span class="text-white font-medium">{{ formatRupiah(hoverPoint.value) }}</span></div>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-3 mt-2">
+                <div v-for="(p, idx) in selectedProductsData" :key="p.nama_produk" class="flex items-center gap-1.5 text-[11px] text-[#666]">
+                  <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: chartColors[idx % chartColors.length] }"></span>
+                  {{ p.nama_produk }}
+                </div>
+              </div>
+            </div>
+
+          <!-- Tabel per bulan -->
+          <div class="bg-white border border-[#e8eae8] rounded-[10px] overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full border-collapse" style="min-width: 760px;">
+                <thead>
+                  <tr class="bg-[#f9fafb] border-b-[1.5px] border-[#e8eae8]">
+                    <th class="px-3 py-2.5 w-9"></th>
+                    <th class="text-left px-3.5 py-2.5 text-[11px] font-semibold text-[#9ca3af] uppercase tracking-wide">Nama Produk</th>
+                    <th class="text-left px-3.5 py-2.5 text-[11px] font-semibold text-[#9ca3af] uppercase tracking-wide">Kondisi</th>
+                    <th class="text-left px-3.5 py-2.5 text-[11px] font-semibold text-[#9ca3af] uppercase tracking-wide">Prioritas</th>
+                    <th v-for="ym in months" :key="ym" class="text-right px-3 py-2.5 text-[10.5px] font-semibold text-[#9ca3af] uppercase tracking-wide whitespace-nowrap">{{ monthLabel(ym) }}</th>
+                    <th class="text-right px-3.5 py-2.5 text-[11px] font-semibold text-[#9ca3af] uppercase tracking-wide">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(p, idx) in pagedMonthlyProducts" :key="p.nama_produk"
+                    class="border-b border-[#f3f4f3] last:border-b-0 hover:brightness-95 transition-colors row-fade-in"
+                    :style="{ animationDelay: `${Math.min(idx, 12) * 30}ms`, ...rowHighlightStyle(p.nama_produk) }"
+                  >
+                    <td class="px-3 py-3 text-center">
+                      <input type="checkbox" :checked="selectedForChart.has(p.nama_produk)" @change="toggleChartSelect(p.nama_produk)" />
+                    </td>
+                    <td class="px-3.5 py-3 font-medium text-[13px] text-[#222] whitespace-nowrap">{{ p.nama_produk }}</td>
+                    <td class="px-3.5 py-3">
+                      <span class="inline-flex items-center px-2 py-[3px] rounded-[5px] text-[10.5px] font-semibold whitespace-nowrap" :class="badgeKondisi[p.kondisi_penjualan]">{{ p.kondisi_penjualan }}</span>
+                    </td>
+                    <td class="px-3.5 py-3">
+                      <span class="inline-flex items-center justify-center w-5 h-5 rounded text-[10.5px] font-bold" :class="badgePrioritas[p.prioritas_abc]">{{ p.prioritas_abc }}</span>
+                    </td>
+                    <td v-for="ym in months" :key="ym" class="px-3 py-3 text-right text-[12px] text-[#555] tabular-nums whitespace-nowrap">{{ formatCompact(p.monthly[ym]) }}</td>
+                    <td class="px-3.5 py-3 text-right text-[13px] font-bold text-[#222] tabular-nums whitespace-nowrap">{{ formatCompact(p.total) }}</td>
+                  </tr>
+                  <tr v-if="pagedMonthlyProducts.length === 0">
+                    <td :colspan="5 + months.length" class="px-4 py-10 text-center text-gray-400 text-sm">Tidak ada produk yang cocok dengan filter di rentang ini.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="px-4 py-3 border-t border-[#e8eae8] flex items-center justify-between">
+              <span class="text-xs text-[#9ca3af]">{{ rangeLabelMonthly }}</span>
+              <div class="flex gap-1">
+                <button
+                  v-for="p in totalPagesMonthly" :key="p"
+                  @click="goToPageMonthly(p)"
+                  class="px-2.5 py-1.5 rounded-md text-xs font-semibold border transition-colors"
+                  :class="p === currentPageMonthly ? 'bg-[#1e3a2a] border-[#1e3a2a] text-white' : 'bg-white border-[#e8eae8] text-[#555] hover:bg-gray-50'"
+                >
+                  {{ p }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
