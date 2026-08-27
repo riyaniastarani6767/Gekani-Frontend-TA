@@ -17,10 +17,10 @@ function formatRupiah(value) {
 
 const quadrants = computed(() => {
   const def = [
-    { key: 'prioritas-utama', label: 'Prioritas Utama', sublabel: 'Laris + Kategori A', hint: 'Stok selalu ada', color: 'bg-emerald-50 border-emerald-200', numColor: 'text-emerald-700', kondisi: 'Produk Laris', abc: 'A' },
-    { key: 'pantau-musiman', label: 'Pantau Musiman', sublabel: 'Musiman + Kategori A', hint: 'Siap sebelum musim', color: 'bg-amber-50 border-amber-200', numColor: 'text-amber-700', kondisi: 'Produk Musiman', abc: 'A' },
-    { key: 'evaluasi-margin', label: 'Evaluasi Margin', sublabel: 'Laris + Kategori C', hint: 'Sering terjual, nilai kecil', color: 'bg-blue-50 border-blue-200', numColor: 'text-blue-700', kondisi: 'Produk Laris', abc: 'C' },
-    { key: 'pertimbangkan-stop', label: 'Pertimbangkan Stop', sublabel: 'Jarang Terjual + Kategori C', hint: 'Kontribusi sangat kecil', color: 'bg-red-50 border-red-200', numColor: 'text-red-700', kondisi: 'Jarang Terjual', abc: 'C' },
+    { key: 'prioritas-utama', label: 'Prioritas Utama', sublabel: 'Andalan + Kategori A', hint: 'Stok selalu ada', color: 'bg-emerald-50 border-emerald-200', numColor: 'text-emerald-700', kondisi: 'Produk Andalan', abc: 'A' },
+    { key: 'pantau-langka', label: 'Pantau Produk Langka', sublabel: 'Langka + Kategori A', hint: 'Mahal, jangan sampai kosong', color: 'bg-amber-50 border-amber-200', numColor: 'text-amber-700', kondisi: 'Produk Langka', abc: 'A' },
+    { key: 'evaluasi-margin', label: 'Evaluasi Margin', sublabel: 'Harian + Kategori C', hint: 'Sering terjual, nilai kecil', color: 'bg-blue-50 border-blue-200', numColor: 'text-blue-700', kondisi: 'Produk Harian', abc: 'C' },
+    { key: 'pertimbangkan-stop', label: 'Pertimbangkan Stop', sublabel: 'Langka + Kategori C', hint: 'Kontribusi sangat kecil', color: 'bg-red-50 border-red-200', numColor: 'text-red-700', kondisi: 'Produk Langka', abc: 'C' },
   ]
   return def.map((q) => {
     const items = props.products.filter((p) => p.kondisi_penjualan === q.kondisi && p.prioritas_abc === q.abc)

@@ -8,7 +8,7 @@ export const TOUR_STEPS = [
     route: 'dashboard',
     target: 'kpi-cards',
     title: 'Ringkasan Cepat',
-    text: 'Lihat jumlah produk dan total penjualan sekilas. Klik salah satu kartu berwarna (Harus Selalu Ada, Perlu Dipantau, Musiman, Kurangi Pembelian) untuk langsung melihat daftar produknya.',
+      text: 'Lihat jumlah produk dan total penjualan sekilas. Klik salah satu kartu berwarna (Harus Selalu Ada, Perlu Dipantau, Produk Langka, Kurangi Pembelian) untuk langsung melihat daftar produknya.',
     placement: 'bottom',
   },
   {
@@ -36,7 +36,7 @@ export const TOUR_STEPS = [
     route: 'dashboard',
     target: 'proporsi-kondisi',
     title: 'Proporsi Kondisi Produk',
-    text: 'Diagram donat ini menunjukkan persentase produk di tiap kondisi penjualan (Laris, Stabil, Musiman, dst). Klik segmen atau baris untuk memfilter tabel produk di bawah.',
+        text: 'Diagram donat ini menunjukkan persentase produk di tiap kondisi penjualan (Harian, Langka, Andalan, Premium). Klik segmen atau baris untuk memfilter tabel produk di bawah.',
     placement: 'left',
   },
   {

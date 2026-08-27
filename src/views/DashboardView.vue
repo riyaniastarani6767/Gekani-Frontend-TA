@@ -16,12 +16,13 @@ const products = ref([])
 const loadError = ref(false)
 const tooltip = ref(null)
 
+const kondisiList = ['Produk Harian', 'Produk Langka', 'Produk Andalan', 'Produk Premium']
+
 const kondisiWarnaSolid = {
-  'Produk Laris': '#5c8a70',
-  'Produk Stabil': '#4f6c8a',
-  'Produk Musiman': '#b6935a',
-  'Jarang Terjual': '#a15252',
-  'Produk Grosir': '#3d5580',
+  'Produk Harian': '#5c8a70',
+  'Produk Langka': '#a15252',
+  'Produk Andalan': '#4f6c8a',
+  'Produk Premium': '#b6935a',
 }
 const badgeAbc = {
   A: 'bg-[#e2ede6] text-[#3d6b4f]',
@@ -29,17 +30,22 @@ const badgeAbc = {
   C: 'bg-[#f0dede] text-[#8a4a4a]',
 }
 const badgeKondisi = {
-  'Produk Laris': 'bg-[#e2ede6] text-[#3d6b4f]',
-  'Produk Stabil': 'bg-[#e3e9f2] text-[#3d5a75]',
-  'Produk Musiman': 'bg-[#f0e8d8] text-[#8a6d3b]',
-  'Jarang Terjual': 'bg-[#f0dede] text-[#8a4a4a]',
-  'Produk Grosir': 'bg-[#dde3ef] text-[#33507a]',
+  'Produk Harian': 'bg-[#e2ede6] text-[#3d6b4f]',
+  'Produk Langka': 'bg-[#f0dede] text-[#8a4a4a]',
+  'Produk Andalan': 'bg-[#e3e9f2] text-[#3d5a75]',
+  'Produk Premium': 'bg-[#f0e8d8] text-[#8a6d3b]',
 }
 
 function formatRupiah(value) {
   if (value >= 1e9) return `Rp${(value / 1e9).toFixed(1)} M`
   if (value >= 1e6) return `Rp${(value / 1e6).toFixed(1)} Jt`
   return `Rp${value.toLocaleString('id-ID')}`
+}
+
+function kondisiPercent(kondisi) {
+  if (!summary.value || !summary.value.jumlah_produk) return 0
+  const count = summary.value.komposisi_kondisi[kondisi] || 0
+  return Math.round((count / summary.value.jumlah_produk) * 100)
 }
 
 function showTooltip(event, title, lines) {
@@ -115,14 +121,12 @@ function toggleFilterKategori(k) {
 }
 
 const activePanel = ref(null)
-function openPanduanPanel(type) {
-  const configs = {
-    tambah: { label: 'Produk Harus Ditambah Stok', sublabel: 'Kategori A - Harus Selalu Ada', items: products.value.filter((p) => p.prioritas_abc === 'A') },
-    pantau: { label: 'Produk Perlu Dipantau', sublabel: 'Kategori B - Perlu Dipantau', items: products.value.filter((p) => p.prioritas_abc === 'B') },
-    musiman: { label: 'Produk Musiman', sublabel: 'Siapkan stok sebelum periode ramai', items: products.value.filter((p) => p.kondisi_penjualan === 'Produk Musiman') },
-    kurangi: { label: 'Produk Kurangi Pembelian', sublabel: 'Kontribusi kecil terhadap pendapatan', items: products.value.filter((p) => p.prioritas_abc === 'C') },
+function openKondisiPanel(kondisi) {
+  activePanel.value = {
+    label: kondisi,
+    sublabel: `${kondisiPercent(kondisi)}% dari total produk`,
+    items: products.value.filter((p) => p.kondisi_penjualan === kondisi),
   }
-  activePanel.value = configs[type]
 }
 
 function lihatDetail(namaProduk) {
@@ -189,35 +193,13 @@ onMounted(() => {
             <div class="text-[10.5px] text-white/60 mt-0.5">Semua produk dianalisis</div>
           </div>
           <button
-            @click="openPanduanPanel('tambah')"
-            class="text-left rounded-[10px] p-4 bg-[#3d6b4f] text-white transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
+            v-for="kondisi in kondisiList" :key="kondisi"
+            @click="openKondisiPanel(kondisi)"
+            class="text-left rounded-[10px] p-4 text-white transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
+            :style="{ backgroundColor: kondisiWarnaSolid[kondisi] }"
           >
-            <div class="text-[22px] font-extrabold leading-none">{{ summary.komposisi_abc.A }}</div>
-            <div class="text-[12px] font-semibold mt-2">Harus Selalu Ada</div>
-            <div class="text-[10.5px] text-white/70 mt-0.5">Lihat produk &rarr;</div>
-          </button>
-          <button
-            @click="openPanduanPanel('pantau')"
-            class="text-left rounded-[10px] p-4 bg-[#8a6d3b] text-white transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
-          >
-            <div class="text-[22px] font-extrabold leading-none">{{ summary.komposisi_abc.B }}</div>
-            <div class="text-[12px] font-semibold mt-2">Perlu Dipantau</div>
-            <div class="text-[10.5px] text-white/70 mt-0.5">Lihat produk &rarr;</div>
-          </button>
-          <button
-            @click="openPanduanPanel('musiman')"
-            class="text-left rounded-[10px] p-4 bg-[#33507a] text-white transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
-          >
-            <div class="text-[22px] font-extrabold leading-none">{{ summary.komposisi_kondisi['Produk Musiman'] || 0 }}</div>
-            <div class="text-[12px] font-semibold mt-2">Produk Musiman</div>
-            <div class="text-[10.5px] text-white/70 mt-0.5">Lihat produk &rarr;</div>
-          </button>
-          <button
-            @click="openPanduanPanel('kurangi')"
-            class="text-left rounded-[10px] p-4 bg-[#8a4a4a] text-white transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5"
-          >
-            <div class="text-[22px] font-extrabold leading-none">{{ summary.komposisi_abc.C }}</div>
-            <div class="text-[12px] font-semibold mt-2">Kurangi Pembelian</div>
+            <div class="text-[22px] font-extrabold leading-none">{{ summary.komposisi_kondisi[kondisi] || 0 }}</div>
+            <div class="text-[12px] font-semibold mt-2">{{ kondisi }}</div>
             <div class="text-[10.5px] text-white/70 mt-0.5">Lihat produk &rarr;</div>
           </button>
           <div class="rounded-[10px] p-4 bg-[#4f6c8a] text-white col-span-2 sm:col-span-1">

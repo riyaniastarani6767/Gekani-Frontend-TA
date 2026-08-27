@@ -7,7 +7,7 @@ const activeTab = ref('matrix')
 const loadError = ref(false)
 const kondisiFilter = ref('')
 
-const kondisiList = ['Produk Laris', 'Produk Stabil', 'Produk Musiman', 'Jarang Terjual', 'Produk Grosir']
+const kondisiList = ['Produk Harian', 'Produk Langka', 'Produk Andalan', 'Produk Premium']
 const abcList = ['A', 'B', 'C']
 const abcLabel = { A: 'Harus Selalu Ada', B: 'Perlu Dipantau', C: 'Kurangi Pembelian' }
 
@@ -17,25 +17,28 @@ const badgeAbc = {
   C: 'bg-[#f0dede] text-[#8a4a4a]',
 }
 const badgeKondisi = {
-  'Produk Laris': 'bg-[#e2ede6] text-[#3d6b4f]',
-  'Produk Stabil': 'bg-[#e3e9f2] text-[#3d5a75]',
-  'Produk Musiman': 'bg-[#f0e8d8] text-[#8a6d3b]',
-  'Jarang Terjual': 'bg-[#f0dede] text-[#8a4a4a]',
-  'Produk Grosir': 'bg-[#dde3ef] text-[#33507a]',
+  'Produk Harian': 'bg-[#e2ede6] text-[#3d6b4f]',
+  'Produk Langka': 'bg-[#f0dede] text-[#8a4a4a]',
+  'Produk Andalan': 'bg-[#e3e9f2] text-[#3d5a75]',
+  'Produk Premium': 'bg-[#f0e8d8] text-[#8a6d3b]',
 }
 const rowDot = {
-  'Produk Laris': '#5c8a70',
-  'Produk Stabil': '#4f6c8a',
-  'Produk Musiman': '#b6935a',
-  'Jarang Terjual': '#a15252',
-  'Produk Grosir': '#3d5580',
+  'Produk Harian': '#5c8a70',
+  'Produk Langka': '#a15252',
+  'Produk Andalan': '#4f6c8a',
+  'Produk Premium': '#b6935a',
 }
 const cellBg = {
-  'Produk Laris': 'bg-[#eef4f0]',
-  'Produk Stabil': 'bg-[#eef1f5]',
-  'Produk Musiman': 'bg-[#f6f1e8]',
-  'Jarang Terjual': 'bg-[#f6eeee]',
-  'Produk Grosir': 'bg-[#eceff5]',
+  'Produk Harian': 'bg-[#eef4f0]',
+  'Produk Langka': 'bg-[#f6eeee]',
+  'Produk Andalan': 'bg-[#eef1f5]',
+  'Produk Premium': 'bg-[#f6f1e8]',
+}
+const kondisiDeskripsi = {
+  'Produk Harian': 'Paling sering dibeli, harganya murah, jaga stok jangan sampai kehabisan.',
+  'Produk Langka': 'Jarang dibeli dibanding produk lain, tapi tetap ada peminatnya tiap bulan.',
+  'Produk Andalan': 'Penyumbang keuntungan terbesar toko, prioritas utama dijaga stoknya.',
+  'Produk Premium': 'Harganya mahal, tapi tetap rutin dicari walau jumlahnya sedikit.',
 }
 
 const hasil = computed(() => analysisStore.currentAnalysis?.hasil_segmentasi || [])
@@ -238,6 +241,7 @@ onMounted(async () => {
                   <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: rowDot[kondisi] }"></span>
                   <span class="font-bold" :style="{ color: rowDot[kondisi] }">{{ kondisi }}</span>
                 </div>
+                <p class="text-[10.5px] text-[#999] mt-1 max-w-[170px] leading-snug whitespace-normal">{{ kondisiDeskripsi[kondisi] }}</p>
               </td>
               <td v-for="abc in abcList" :key="abc" class="p-2 align-top">
                 <div
@@ -272,8 +276,13 @@ onMounted(async () => {
       <div v-if="activeTab === 'scatter'" class="bg-white rounded-[10px] border border-[#e8eae8] p-5">
         <div class="flex items-start justify-between gap-3 mb-1">
           <div class="text-sm font-bold text-[#111]">Sebaran Produk</div>
-          <div v-if="silhouetteFormatted" class="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold text-white" :style="{ backgroundColor: silhouetteColor }">
-            Silhouette Score: {{ silhouetteFormatted }}
+          <div class="flex items-center gap-2">
+            <div v-if="analysisStore.currentAnalysis?.optimal_k" class="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold text-white bg-[#4f6c8a]">
+              K Optimal: {{ analysisStore.currentAnalysis.optimal_k }}
+            </div>
+            <div v-if="silhouetteFormatted" class="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold text-white" :style="{ backgroundColor: silhouetteColor }">
+              Silhouette Score: {{ silhouetteFormatted }}
+            </div>
           </div>
         </div>
         <p class="text-[12px] text-[#666] mb-4 leading-relaxed max-w-2xl">
@@ -352,7 +361,7 @@ onMounted(async () => {
         <div class="flex flex-wrap gap-3 mt-3">
           <div v-for="kondisi in kondisiList" :key="kondisi" class="flex items-center gap-1.5 text-xs text-gray-600">
             <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: kondisiWarnaSolid(kondisi) }"></span>
-            {{ kondisi }}
+            {{ kondisi }} ({{ hasil.filter((p) => p.kondisi_penjualan === kondisi).length }} produk)
           </div>
         </div>
       </div>
